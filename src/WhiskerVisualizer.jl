@@ -1,14 +1,11 @@
 module WhiskerVisualizer
 
-using Gtk.ShortNames, Cairo, SpikeSorting, Winston
-
-#Change colormap to grayscale for imagesc
-#Need to reverse
-colormap("grays")
-Winston.colormap(reverse(Winston._current_colormap))
+using GLVisualize, GLAbstraction, Reactive, GeometryTypes, Colors, GLWindow, VideoIO, OpenEphysLoader
+import GLVisualize: widget, mm, play_slider, labeled_slider
 
 include("types.jl")
 include("gui.jl")
 include("plotting.jl")
+include("parsers.jl")
 
 end
