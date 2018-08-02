@@ -33,7 +33,7 @@ end
 
 function add_spikes(gui,channel_num)
 
-    spike_path = string(gui.folder_path,"101_ADC",channel_num,".continuous")
+    spike_path = spike_path = get_spike_path(gui.folder_path,channel_num)
     io_spike = open(spike_path,"r");
 
     spikes = SampleArray(Float32,io_spike);
@@ -53,7 +53,7 @@ function add_video(gui,channel_num)
     event_path = string(gui.folder_path, "all_channels.events")
     io_event = open(event_path,"r");
 
-    spike_path = string(gui.folder_path,"101_ADC",channel_num,".continuous")
+    spike_path = get_spike_path(gui.folder_path,channel_num)
     io_spike = open(spike_path,"r")
     times=TimeArray(Int64,io_spike);
 
@@ -71,7 +71,7 @@ function add_ttl_cov(gui,channel_num,cov_num)
     event_path = string(gui.folder_path, "all_channels.events")
     io_event = open(event_path,"r");
 
-    spike_path = string(gui.folder_path,"101_ADC",channel_num,".continuous")
+    spike_path = get_spike_path(gui.folder_path,channel_num)
     io_spike = open(spike_path,"r")
     times=TimeArray(Int64,io_spike);
 
@@ -86,6 +86,16 @@ nothing
 
     nothing
 end
+
+function get_spike_path(folder_path,channel_num)
+
+    adc_channels=filter(x->contains(x,".continuous"),readdir(folder_path))
+
+    spike_path=string(folder_path,adc_channels[channel_num])
+
+    spike_path
+end
+
 
 function add_callbacks(gui)
 
@@ -103,9 +113,11 @@ function add_callbacks(gui)
     #For instance, if we play just 1 data point per frame, that would be 30000 / 30 = 1/1000 of real time
     #Lets slow down to 1/10 of normal
     slowdown = 10
-    max_time = 10000000
+    #max_time = 10000000
 
-    total_slider_values = linspace(100, gui.max_time, (gui.max_time-100) / 1000 * slowdown)
+    #Let's make the slider only move in increments of the ADC, or multiples of 1/30000 seconds
+    slider_step = round(Int64,gui.max_time / ((gui.max_time-100) / 1000 * 10))
+    total_slider_values = 100:slider_step:gui.max_time
     iconsize = 8mm
     play_viz, slider_value = play_slider(
         gui.edit_screen, iconsize, total_slider_values
