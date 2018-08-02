@@ -1,5 +1,7 @@
+export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov
 
-function make_gui()
+
+function make_gui(mypath)
 
     window = glscreen()
 
@@ -18,21 +20,81 @@ function make_gui()
     imgscreen = Screen(viewscreen, area = imgarea)
     datascreen = Screen(viewscreen, area = dataarea)
 
-    analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,0.2f0,Point2f0[Point2f0(i*5,0.0)  for i=1:100,j=1:3])
+    vid_path = string(mypath,filter(x->contains(x,".mp4"),readdir(mypath))[1])
+
+    max_time=10000
+
+    #Y data is the covariate of interest
+    y_data = rand(1f0:100f0,max_time,3)
+
+    analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,0.2f0,Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
+    vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time))
+end
+
+function add_spikes(gui,channel_num)
+
+    spike_path = string(gui.folder_path,"101_ADC",channel_num,".continuous")
+    io_spike = open(spike_path,"r");
+
+    spikes = SampleArray(Float32,io_spike);
+    spikes = Array(spikes)
+
+    gui.y_data=zeros(Float32,length(spikes),3)
+
+    gui.y_data[:,1]=spikes
+    gui.max_time=length(spikes)
+
+    close(io_spike)
+    nothing
+end
+
+function add_video(gui,channel_num)
+
+    event_path = string(gui.folder_path, "all_channels.events")
+    io_event = open(event_path,"r");
+
+    spike_path = string(gui.folder_path,"101_ADC",channel_num,".continuous")
+    io_spike = open(spike_path,"r")
+    times=TimeArray(Int64,io_spike);
+
+    xx=parse_ttl(io_event,times,channel_num)
+
+    gui.video_ts=xx[3]
+
+    close(io_spike)
+    close(io_event)
+    nothing
+end
+
+function add_ttl_cov(gui,channel_num,cov_num)
+
+    event_path = string(gui.folder_path, "all_channels.events")
+    io_event = open(event_path,"r");
+
+    spike_path = string(gui.folder_path,"101_ADC",channel_num,".continuous")
+    io_spike = open(spike_path,"r")
+    times=TimeArray(Int64,io_spike);
+
+    xx=parse_ttl(io_event,times,channel_num)
+
+    gui.y_data[:,cov_num] = xx[2]
+
+    close(io_spike)
+    close(io_event)
+nothing
+
+
+    nothing
 end
 
 function add_callbacks(gui)
 
     #values needed to load images and plot it
-    impath = "/Users/wanglab/Dropbox/Neuro/Trigeminal/Data/071818/whiskers_071818.mp4"
     xoff = 100;
     yoff = 100;
 
     myimage32 = [Gray(rand()) for i=1:480,j=1:640]
     #myimage=zeros(UInt8,640,480)
-
-    #Y data is the covariate of interest
-    y_data = rand(1f0:100f0,100000000,3)
 
     #slider is used to start and stop animation, as well as drag to certain point
     #Play slider renders at 30 fps
@@ -43,7 +105,7 @@ function add_callbacks(gui)
     slowdown = 10
     max_time = 10000000
 
-    total_slider_values = linspace(1, max_time, max_time / 1000 * slowdown)
+    total_slider_values = linspace(100, gui.max_time, (gui.max_time-100) / 1000 * slowdown)
     iconsize = 8mm
     play_viz, slider_value = play_slider(
         gui.edit_screen, iconsize, total_slider_values
@@ -61,11 +123,39 @@ function add_callbacks(gui)
         #If we want to speed things up, we could alternatively change more than 1 point on the axis by adding
         #Points from between the previous slider value and current slider value.
 
+        #For example, if we are at real time, 1000 data points pass every frame (30 fps)
+        #If we are 1/10 real time, then 100
+        #1/100 real time then 10 data point every frame
+        #1/1000 real time then 1 data point every frame
+
+        #Consequently, at 1/10 real time, we are missing quite a few data points, and can't see spikes
+
         for mycov=1:3
+
+            #We should first store recent data
+
+            #Then plot the data with appropriate sampling based on the timebase
+            #=
             for i=1:99
                 gui.cov1[i,mycov] = Point2f0(i*5+xoff,gui.cov1[i+1,mycov][2])
             end
-            gui.cov1[100,mycov] = Point2f0(500+xoff,y_data[round(Int,t),mycov]+yoff*mycov)
+            gui.cov1[100,mycov] = Point2f0(500+xoff,gui.y_data[round(Int,t),mycov]*gui.y_scales[mycov]+yoff*mycov)
+            =#
+
+            #With each frame, we update 25/500 points on the line
+            #That means that the total time displayed is 66.6 ms
+            #We would lose spike resolution after this, so maybe would
+            #be good to have a spike raster?
+            for i=1:475
+                gui.cov1[i,mycov] = Point2f0(i+xoff,gui.cov1[i+25,mycov][2])
+            end
+
+            xinds=4:4:100
+            for i=1:25
+                gui.cov1[i+475,mycov] = Point2f0(475+i+xoff,gui.y_data[round(Int,t-100+xinds[i]),mycov]*gui.y_scales[mycov]+yoff*mycov)
+            end
+
+
         end
         gui.cov1
     end
@@ -73,12 +163,16 @@ function add_callbacks(gui)
     #Slider value is also send to image plotter that loads new frame and plots it
     my_image = map(slider_value) do t
 
-        f = VideoIO.openvideo(impath)
+        f = VideoIO.openvideo(gui.vid_path)
         #get_frame(f,round(Int,t))
         DAQ_rate = 30000
-        camera_frame_rate = 500
+        camera_frame_rate = 500 #Don't actually need this since we have the frame number
         video_frame_rate = 25
-        seek(f,t/DAQ_rate * camera_frame_rate / video_frame_rate)
+        #Because the video is not continuous, at T we should
+        #find the total frame count at that index and use that instead
+
+        frame_num = gui.video_ts[round(Int,t)]
+        seek(f,frame_num / video_frame_rate)
         myimage = read(f)
         close(f)
 

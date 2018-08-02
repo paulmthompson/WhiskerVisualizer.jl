@@ -6,4 +6,10 @@ type analysis_gui
     datascreen::GLWindow.Screen
     gamma::Float32
     cov1::Array{GeometryTypes.Point{2,Float32},2}
+    vid_path::String
+    folder_path::String
+    y_data::Array{Float32,2}
+    max_time::Int64
+    y_scales::Array{Float32,1}
+    video_ts::Array{Int64,1}
 end

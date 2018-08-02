@@ -22,3 +22,49 @@ function read_digital(io::IOStream)
     end
     myevents
 end
+
+function parse_ttl(io,tt,ind)
+    digital=read_digital(io)
+
+    digital_events=falses(length(tt));
+
+    digital_time=zeros(Int64,length(tt))
+
+    states=falses
+    states_t=digital[ind][1]
+    states_i=1
+    states_totals=0
+
+    states_array=zeros(Int64,0)
+
+    for i=2:length(tt)
+
+        #If this is when a digital event occurs
+        if states_t == tt[i]
+
+            #Change the state
+            digital_events[i] = !digital_events[i-1]
+
+            #If we went high
+            if digital_events[i]
+                states_totals+=1
+                push!(states_array,tt[i])
+            end
+
+            if length(digital[ind])<(states_i+1)
+
+            else
+                states_i=states_i+1
+
+                #new time to look for is
+                states_t=digital[ind][states_i]
+            end
+
+        else
+            digital_events[i] = digital_events[i-1]
+        end
+
+        digital_time[i]=states_totals
+    end
+    (states_array,digital_events,digital_time)
+end
