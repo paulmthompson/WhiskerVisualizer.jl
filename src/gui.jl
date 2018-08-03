@@ -65,7 +65,7 @@ function add_video(gui,channel_num)
     gui.video_ts=xx[3]
 
     if mpv_active
-        stdout, stdin, process = readandwrite(`/Applications/mpv.app/Contents/MacOS/mpv --hr-seek=always --input-ipc-server=/tmp/mpvsocket --quiet --osdlevel=0 $(gui.vid_path)
+        stdout, stdin, process = readandwrite(`mpv --hr-seek=always --input-ipc-server=/tmp/mpvsocket --quiet --osdlevel=0 $(gui.vid_path)
 `)
         run(pause_cmd)
     end
@@ -246,3 +246,7 @@ function add_callbacks(gui)
 end
 
 myseek(x)=pipeline(`echo seek $x absolute`,`socat - /tmp/mpvsocket`)
+
+set_gamma(x)=pipeline(`echo set gamma $x`,`socat - /tmp/mpvsocket`)
+
+set_brightness(x)=pipeline(`echo set brightness $x`,`socat - /tmp/mpvsocket`)

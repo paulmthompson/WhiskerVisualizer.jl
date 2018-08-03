@@ -86,3 +86,18 @@ function check_camera_alignment(gui)
     end
     nothing
 end
+
+function get_backup_timestamps(backup_path)
+
+	xx=open(backup_path,"r")
+
+	ephys_times=zeros(Int64,0)
+	camera_frames=zeros(Int32,0)
+	seek(xx,0)
+	while (!eof(xx))
+    		push!(ephys_times,read(xx, Int64))
+    		push!(camera_frames,read(xx, Int32))
+	end
+	close(xx)
+	(ephys_times,camera_frames)
+end
