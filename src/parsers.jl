@@ -1,3 +1,5 @@
+export check_camera_alignment
+
 function read_digital(io::IOStream)
     seekend(io)
     myend=position(io)
@@ -26,8 +28,11 @@ end
 function parse_ttl(io,tt,ind)
     digital=read_digital(io)
 
+    #Array of bools that is true during a TTL event, and false when no TTL is present
     digital_events=falses(length(tt));
 
+    #Array where each index corresponds to the total number of TTL digital_events
+    #Up to that point.
     digital_time=zeros(Int64,length(tt))
 
     states=falses
@@ -67,4 +72,17 @@ function parse_ttl(io,tt,ind)
         digital_time[i]=states_totals
     end
     (states_array,digital_events,digital_time)
+end
+
+function check_camera_alignment(gui)
+
+    xx=read(`mediainfo --Output="Video;%FrameCount%" $(gui.vid_path)`)
+
+    video_frames=parse(Int64,convert(String,xx[1:(end-1)]))
+    if gui.video_ts[end] == video_frames
+        println("Exposure event totals match frames in video file")
+    else
+        println("ERROR: frame counts do not match")
+    end
+    nothing
 end

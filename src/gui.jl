@@ -1,5 +1,8 @@
 export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov
 
+const pause_cmd = pipeline(`echo 'set pause yes'`,`socat - /tmp/mpvsocket`)
+
+const mpv_active = true;
 
 function make_gui(mypath)
 
@@ -28,7 +31,7 @@ function make_gui(mypath)
     y_data = rand(1f0:100f0,max_time,3)
 
     analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,0.2f0,Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
-    vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time))
+    vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100)
 end
 
 function add_spikes(gui,channel_num)
@@ -60,6 +63,12 @@ function add_video(gui,channel_num)
     xx=parse_ttl(io_event,times,channel_num)
 
     gui.video_ts=xx[3]
+
+    if mpv_active
+        stdout, stdin, process = readandwrite(`/Applications/mpv.app/Contents/MacOS/mpv --hr-seek=always --input-ipc-server=/tmp/mpvsocket --quiet --osdlevel=0 $(gui.vid_path)
+`)
+        run(pause_cmd)
+    end
 
     close(io_spike)
     close(io_event)
@@ -104,7 +113,6 @@ function add_callbacks(gui)
     yoff = 100;
 
     myimage32 = [Gray(rand()) for i=1:480,j=1:640]
-    #myimage=zeros(UInt8,640,480)
 
     #slider is used to start and stop animation, as well as drag to certain point
     #Play slider renders at 30 fps
@@ -130,6 +138,20 @@ function add_callbacks(gui)
     time_scale=1;
     my_animation = map(slider_value) do t
 
+        DAQ_rate = 30000
+        camera_frame_rate = 500 #Don't actually need this since we have the frame number
+        video_frame_rate = 25
+        #Because the video is not continuous, at T we should
+        #find the total frame count at that index and use that instead
+
+        if mpv_active
+            frame_num = gui.video_ts[round(Int,t)]
+            gui.t = round(Int,t)
+            if gui.current_frame != frame_num
+                gui.current_frame = frame_num
+                run(myseek(frame_num / video_frame_rate))
+            end
+        end
         #Since this is automatically advancing, we can slow things down here if we wish
         #By only plotting if a certain number of frames have passed
         #If we want to speed things up, we could alternatively change more than 1 point on the axis by adding
@@ -173,28 +195,31 @@ function add_callbacks(gui)
     end
 
     #Slider value is also send to image plotter that loads new frame and plots it
-    my_image = map(slider_value) do t
+    if !mpv_active
+        my_image = map(slider_value) do t
 
-        f = VideoIO.openvideo(gui.vid_path)
-        #get_frame(f,round(Int,t))
-        DAQ_rate = 30000
-        camera_frame_rate = 500 #Don't actually need this since we have the frame number
-        video_frame_rate = 25
-        #Because the video is not continuous, at T we should
-        #find the total frame count at that index and use that instead
+            video_frame_rate = 25
 
-        frame_num = gui.video_ts[round(Int,t)]
-        seek(f,frame_num / video_frame_rate)
-        myimage = read(f)
-        close(f)
+            frame_num = gui.video_ts[round(Int,t)]
+            gui.t = round(Int,t)
+            if gui.current_frame != frame_num
+                gui.current_frame = frame_num
+                f = VideoIO.openvideo(gui.vid_path)
 
-        for i=1:640
-            for j=1:480
-                myimage32[j,i]=myimage[j,i]
-                myimage32[j,i]=myimage32[j,i]+gui.gamma
+                seek(f,frame_num / video_frame_rate)
+                myimage = read(f)
+
+                for i=1:640
+                    for j=1:480
+                        myimage32[j,i]=myimage[j,i]
+                        myimage32[j,i]=myimage32[j,i]+gui.gamma
+                    end
+                end
+                close(f)
             end
+
+            myimage32
         end
-        myimage32
     end
 
     gamma_slider, gamma_slider_s = labeled_slider(0.0f0:.1f0:1.0f0,gui.edit_screen)
@@ -209,7 +234,9 @@ function add_callbacks(gui)
     ]
 
     _view(visualize(my_animation, :lines,thickness=5f0), gui.datascreen)
-    _view(visualize(my_image),gui.imgscreen)
+    if !mpv_active
+        _view(visualize(my_image),gui.imgscreen)
+    end
     _view(visualize(
         controls,
         text_scale = 4mm,
@@ -217,3 +244,5 @@ function add_callbacks(gui)
     ), gui.edit_screen, camera = :fixed_pixel)
 
 end
+
+myseek(x)=pipeline(`echo seek $x absolute`,`socat - /tmp/mpvsocket`)

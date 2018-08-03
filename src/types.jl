@@ -12,4 +12,6 @@ type analysis_gui
     max_time::Int64
     y_scales::Array{Float32,1}
     video_ts::Array{Int64,1}
+    current_frame::Int64
+    t::Int64
 end
