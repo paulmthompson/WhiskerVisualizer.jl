@@ -2,8 +2,6 @@ export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov
 
 const pause_cmd = pipeline(`echo 'set pause yes'`,`socat - /tmp/mpvsocket`)
 
-const mpv_active = true;
-
 function make_gui(mypath)
 
     window = glscreen()
@@ -64,11 +62,11 @@ function add_video(gui,channel_num)
 
     gui.video_ts=xx[3]
 
-    if mpv_active
-        stdout, stdin, process = readandwrite(`mpv --hr-seek=always --input-ipc-server=/tmp/mpvsocket --quiet --osdlevel=0 $(gui.vid_path)
-`)
+	#If i seek to the last frame, mpv crashes, so set to second to last frame
+	gui.video_ts[gui.video_ts.==gui.video_ts[end]]=gui.video_ts[end]-1;
+
+        stdout, stdin, process = readandwrite(`mpv --hr-seek=always --input-ipc-server=/tmp/mpvsocket --quiet --osdlevel=0 $(gui.vid_path)`)
         run(pause_cmd)
-    end
 
     close(io_spike)
     close(io_event)
@@ -144,14 +142,12 @@ function add_callbacks(gui)
         #Because the video is not continuous, at T we should
         #find the total frame count at that index and use that instead
 
-        if mpv_active
             frame_num = gui.video_ts[round(Int,t)]
             gui.t = round(Int,t)
             if gui.current_frame != frame_num
                 gui.current_frame = frame_num
                 run(myseek(frame_num / video_frame_rate))
             end
-        end
         #Since this is automatically advancing, we can slow things down here if we wish
         #By only plotting if a certain number of frames have passed
         #If we want to speed things up, we could alternatively change more than 1 point on the axis by adding
@@ -189,37 +185,9 @@ function add_callbacks(gui)
                 gui.cov1[i+475,mycov] = Point2f0(475+i+xoff,gui.y_data[round(Int,t-100+xinds[i]),mycov]*gui.y_scales[mycov]+yoff*mycov)
             end
 
-
         end
+
         gui.cov1
-    end
-
-    #Slider value is also send to image plotter that loads new frame and plots it
-    if !mpv_active
-        my_image = map(slider_value) do t
-
-            video_frame_rate = 25
-
-            frame_num = gui.video_ts[round(Int,t)]
-            gui.t = round(Int,t)
-            if gui.current_frame != frame_num
-                gui.current_frame = frame_num
-                f = VideoIO.openvideo(gui.vid_path)
-
-                seek(f,frame_num / video_frame_rate)
-                myimage = read(f)
-
-                for i=1:640
-                    for j=1:480
-                        myimage32[j,i]=myimage[j,i]
-                        myimage32[j,i]=myimage32[j,i]+gui.gamma
-                    end
-                end
-                close(f)
-            end
-
-            myimage32
-        end
     end
 
     gamma_slider, gamma_slider_s = labeled_slider(0.0f0:.1f0:1.0f0,gui.edit_screen)
@@ -234,9 +202,6 @@ function add_callbacks(gui)
     ]
 
     _view(visualize(my_animation, :lines,thickness=5f0), gui.datascreen)
-    if !mpv_active
-        _view(visualize(my_image),gui.imgscreen)
-    end
     _view(visualize(
         controls,
         text_scale = 4mm,

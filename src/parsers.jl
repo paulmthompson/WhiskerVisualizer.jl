@@ -79,7 +79,7 @@ function check_camera_alignment(gui)
     xx=read(`mediainfo --Output="Video;%FrameCount%" $(gui.vid_path)`)
 
     video_frames=parse(Int64,convert(String,xx[1:(end-1)]))
-    if gui.video_ts[end] == video_frames
+    if gui.video_ts[end]+1 == video_frames
         println("Exposure event totals match frames in video file")
     else
         println("ERROR: frame counts do not match")
