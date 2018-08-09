@@ -29,7 +29,7 @@ function make_gui(mypath)
     y_data = rand(1f0:100f0,max_time,3)
 
     analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,0.2f0,Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
-    vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100)
+    vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100,1,zeros(Int64,0))
 end
 
 function add_spikes(gui,channel_num)
@@ -54,13 +54,14 @@ function add_video(gui,channel_num)
     event_path = string(gui.folder_path, "all_channels.events")
     io_event = open(event_path,"r");
 
-    spike_path = get_spike_path(gui.folder_path,channel_num)
+    spike_path = get_spike_path(gui.folder_path,1)
     io_spike = open(spike_path,"r")
     times=TimeArray(Int64,io_spike);
 
     xx=parse_ttl(io_event,times,channel_num)
 
     gui.video_ts=xx[3]
+    gui.start_time=times[1]
 
 	#If i seek to the last frame, mpv crashes, so set to second to last frame
 	gui.video_ts[gui.video_ts.==gui.video_ts[end]]=gui.video_ts[end]-1;
@@ -78,7 +79,7 @@ function add_ttl_cov(gui,channel_num,cov_num)
     event_path = string(gui.folder_path, "all_channels.events")
     io_event = open(event_path,"r");
 
-    spike_path = get_spike_path(gui.folder_path,channel_num)
+    spike_path = get_spike_path(gui.folder_path,1)
     io_spike = open(spike_path,"r")
     times=TimeArray(Int64,io_spike);
 

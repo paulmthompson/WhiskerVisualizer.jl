@@ -18,3 +18,18 @@ function get_frame(f,frame)
     #VideoIO.reset_frame_flag!(f)
     nothing
 end
+
+function plot_spikes(gui)
+
+    xy=[Point2f0(0.0,0.0) for i=1:50,j=1:length(gui.spikes_ts)]
+
+    for i=1:length(gui.spikes_ts)
+        for j=1:50
+            xy[j,i] = Point2f0(j*5+200,gui.y_data[gui.spikes_ts[i]-10+j,1].*gui.y_scales[1]*2+300)
+        end
+    end
+
+    lines2d = visualize(xy,:lines,thickness=1f0)
+    _view(lines2d,gui.imgscreen)
+
+end

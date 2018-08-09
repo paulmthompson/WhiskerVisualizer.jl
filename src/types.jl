@@ -14,4 +14,6 @@ type analysis_gui
     video_ts::Array{Int64,1}
     current_frame::Int64
     t::Int64
+    start_time::Int64
+    spikes_ts::Array{Int64,1}
 end
