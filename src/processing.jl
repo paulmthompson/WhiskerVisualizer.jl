@@ -29,3 +29,17 @@ end
 function spike_audio(spike_times)
     conv(sin.(0:pi/15:2*pi),spike_times)
 end
+
+function sort_spikes(gui,t)
+
+    gui.s.index=0
+    SpikeSorting.onlinesort!(gui.s,gui.y_data[(t-30000)+1:t,1],gui.buf,gui.spike_nums)
+
+    gui.spikes_ts=[]
+    for i=1:gui.spike_nums[1]
+        push!(gui.spikes_ts,t-30000+1+gui.buf[i].inds[1])
+    end
+    gui.spike_nums[1]=0
+
+    nothing
+end

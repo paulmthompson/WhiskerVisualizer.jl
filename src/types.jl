@@ -16,4 +16,9 @@ type analysis_gui
     t::Int64
     start_time::Int64
     spikes_ts::Array{Int64,1}
+    s::Sorting
+    buf::Array{SpikeSorting.Spike,2}
+    spike_nums::Array{Int64,1}
+    show_spikes::Bool
+    spikes::Array{GeometryTypes.Point{2,Float32},2}
 end

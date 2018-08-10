@@ -28,8 +28,23 @@ function make_gui(mypath)
     #Y data is the covariate of interest
     y_data = rand(1f0:100f0,max_time,3)
 
-    analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,0.2f0,Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
-    vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100,1,zeros(Int64,0))
+    detect=DetectNeg();
+    cluster=ClusterTemplate();
+    align=AlignMin();
+    feature=FeatureTime();
+    reduce=ReductionNone();
+    thres=ThresholdMeanN();
+    num_channels=1;
+
+    s=create_multi(detect,cluster,align,feature,reduce,thres,1,48,Float32);
+    buf=Spike[Spike() for i=1:1000,j=1:1];
+    nums=zeros(Int64,1)
+    s[1].thres=-1.0
+
+    analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,0.2f0,
+    Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
+    vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100,
+    1,zeros(Int64,0),s[1],buf,nums,false,[Point2f0(0.0,0.0) for i=1:50,j=1:1])
 end
 
 function add_spikes(gui,channel_num)
@@ -152,6 +167,25 @@ function add_callbacks(gui)
         gui.cov1
     end
 
+    my_spikes = map(slider_value) do t
+
+        if gui.show_spikes
+            sort_spikes(gui,t)
+            plot_spikes(gui)
+        end
+
+        gui.spikes
+    end
+
+    my_colors = map(my_spikes) do t
+
+        waveform_color=[RGBA(0f0, 0f0, 1f0,1f0) for i=1:(size(t,2)-1)*size(t,1)]
+
+        thres_color = [RGBA(0f0, 1f0, 0f0,1f0) for i=1:size(t,1)]
+
+        [waveform_color; thres_color]
+    end
+
     gamma_slider, gamma_slider_s = labeled_slider(0.0f0:.1f0:1.0f0,gui.edit_screen)
 
     change_gamma = map(gamma_slider_s) do t
@@ -163,7 +197,8 @@ function add_callbacks(gui)
         "gamma" => gamma_slider,
     ]
 
-    _view(visualize(my_animation, :lines,thickness=5f0), gui.datascreen)
+    _view(visualize(my_animation, :lines,thickness=2f0), gui.datascreen)
+    _view(visualize(my_spikes, :lines, thickness=1f0,color = my_colors), gui.imgscreen)
     _view(visualize(
         controls,
         text_scale = 4mm,
