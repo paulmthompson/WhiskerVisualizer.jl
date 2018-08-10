@@ -34,7 +34,7 @@ end
 
 function add_spikes(gui,channel_num)
 
-    spike_path = spike_path = get_spike_path(gui.folder_path,channel_num)
+    spike_path = get_spike_path(gui.folder_path,channel_num)
     io_spike = open(spike_path,"r");
 
     spikes = SampleArray(Float32,io_spike);
@@ -63,11 +63,14 @@ function add_video(gui,channel_num)
     gui.video_ts=xx[3]
     gui.start_time=times[1]
 
-	#If i seek to the last frame, mpv crashes, so set to second to last frame
-	gui.video_ts[gui.video_ts.==gui.video_ts[end]]=gui.video_ts[end]-1;
+    #If i seek to the last frame, mpv crashes, so set to second to last frame
+    gui.video_ts[gui.video_ts.==gui.video_ts[end]]=gui.video_ts[end]-1;
 
-        stdout, stdin, process = readandwrite(`mpv --hr-seek=always --input-ipc-server=/tmp/mpvsocket --quiet --osdlevel=0 $(gui.vid_path)`)
-        run(pause_cmd)
+    #Error checking here with mpv socket?
+    #May need to try and sleep if mpv is not open yet
+    stdout, stdin, process = readandwrite(`mpv --hr-seek=always --input-ipc-server=/tmp/mpvsocket --quiet --osdlevel=0 $(gui.vid_path)`)
+    sleep(1.0)
+    run(pause_cmd)
 
     close(io_spike)
     close(io_event)
@@ -107,12 +110,6 @@ end
 
 function add_callbacks(gui)
 
-    #values needed to load images and plot it
-    xoff = 100;
-    yoff = 100;
-
-    myimage32 = [Gray(rand()) for i=1:480,j=1:640]
-
     #slider is used to start and stop animation, as well as drag to certain point
     #Play slider renders at 30 fps
     #Our DAQ records at 30000, so we can roughly control our speed of playback by how far
@@ -124,7 +121,7 @@ function add_callbacks(gui)
 
     #Let's make the slider only move in increments of the ADC, or multiples of 1/30000 seconds
     slider_step = round(Int64,gui.max_time / ((gui.max_time-100) / 1000 * 10))
-    total_slider_values = 100:slider_step:gui.max_time
+    total_slider_values = 30000:slider_step:gui.max_time
     iconsize = 8mm
     play_viz, slider_value = play_slider(
         gui.edit_screen, iconsize, total_slider_values
@@ -149,44 +146,8 @@ function add_callbacks(gui)
                 gui.current_frame = frame_num
                 run(myseek(frame_num / video_frame_rate))
             end
-        #Since this is automatically advancing, we can slow things down here if we wish
-        #By only plotting if a certain number of frames have passed
-        #If we want to speed things up, we could alternatively change more than 1 point on the axis by adding
-        #Points from between the previous slider value and current slider value.
 
-        #For example, if we are at real time, 1000 data points pass every frame (30 fps)
-        #If we are 1/10 real time, then 100
-        #1/100 real time then 10 data point every frame
-        #1/1000 real time then 1 data point every frame
-
-        #Consequently, at 1/10 real time, we are missing quite a few data points, and can't see spikes
-
-        for mycov=1:3
-
-            #We should first store recent data
-
-            #Then plot the data with appropriate sampling based on the timebase
-            #=
-            for i=1:99
-                gui.cov1[i,mycov] = Point2f0(i*5+xoff,gui.cov1[i+1,mycov][2])
-            end
-            gui.cov1[100,mycov] = Point2f0(500+xoff,gui.y_data[round(Int,t),mycov]*gui.y_scales[mycov]+yoff*mycov)
-            =#
-
-            #With each frame, we update 25/500 points on the line
-            #That means that the total time displayed is 66.6 ms
-            #We would lose spike resolution after this, so maybe would
-            #be good to have a spike raster?
-            for i=1:475
-                gui.cov1[i,mycov] = Point2f0(i+xoff,gui.cov1[i+25,mycov][2])
-            end
-
-            xinds=4:4:100
-            for i=1:25
-                gui.cov1[i+475,mycov] = Point2f0(475+i+xoff,gui.y_data[round(Int,t-100+xinds[i]),mycov]*gui.y_scales[mycov]+yoff*mycov)
-            end
-
-        end
+            plot_lines(gui,t)
 
         gui.cov1
     end

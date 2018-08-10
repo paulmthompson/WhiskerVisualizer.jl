@@ -14,6 +14,7 @@ function thres_ts(data,thres)
 
     test_data=data./maximum(data)
     spike_times=falses(length(test_data))
+    spike_inds=zeros(Int64,0)
     for i=1:length(test_data)
 
         if abs(test_data[i])>thres

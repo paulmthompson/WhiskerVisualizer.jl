@@ -1,4 +1,4 @@
-export check_camera_alignment
+export check_camera_alignment, master_parse
 
 function read_digital(io::IOStream)
     seekend(io)
@@ -23,6 +23,39 @@ function read_digital(io::IOStream)
         end
     end
     myevents
+end
+
+#Change open ephys files into a different MAT file for each unit with
+#1) Analog trace, video ttls, and laser ttls
+function master_parse(folder_path,video_chan,laser_chan)
+
+    event_path = string(folder_path, "all_channels.events")
+    io_event = open(event_path,"r");
+
+    spike_path = get_spike_path(folder_path,1)
+    io_spike = open(spike_path,"r")
+    spikes = SampleArray(Float32,io_spike);
+    spikes = Array(spikes)
+
+    close(io_spike)
+
+    io_spike = open(spike_path,"r")
+    times=TimeArray(Int64,io_spike);
+
+    digital=read_digital(io_event)
+
+    video_ts=digital[video_chan][1:2:end] - times[1]
+    laser_ts=digital[laser_chan][1:2:end] - times[1]
+
+    close(io_spike)
+    close(io_event)
+
+    file=matopen(string(folder_path,"spikes.mat"),"w")
+    write(file,"spikes",spikes)
+    write(file,"video_ts",video_ts)
+    write(file,"laser_ts",laser_ts)
+    close(file)
+    nothing
 end
 
 function parse_ttl(io,tt,ind)
