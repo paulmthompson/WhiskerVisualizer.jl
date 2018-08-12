@@ -13,13 +13,15 @@ function make_gui(mypath)
 
     editarea, viewarea = y_partition(window.area, 20)
     edit_screen = Screen(window, area = editarea)
-    viewscreen = Screen(
-        window, name = :viewscreen,
-        area = viewarea
-    )
+    viewscreen = Screen(window, name = :viewscreen,area = viewarea)
+
     dataarea, imgarea = x_partition(viewarea,50)
     imgscreen = Screen(viewscreen, area = imgarea)
     datascreen = Screen(viewscreen, area = dataarea)
+
+    slider_area, time_area = x_partition(editarea,50)
+    slider_screen = Screen(edit_screen, area=slider_area)
+    time_screen = Screen(edit_screen, area=time_area)
 
     vid_path = string(mypath,filter(x->contains(x,".mp4"),readdir(mypath))[1])
 
@@ -41,7 +43,8 @@ function make_gui(mypath)
     nums=zeros(Int64,1)
     s[1].thres=-1.0
 
-    analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,0.2f0,
+    analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,time_screen, slider_screen,
+    0.2f0,
     Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
     vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100,
     1,zeros(Int64,0),s[1],buf,nums,false,[Point2f0(0.0,0.0) for i=1:50,j=1:1])
@@ -139,7 +142,7 @@ function add_callbacks(gui)
     total_slider_values = 30000:slider_step:gui.max_time
     iconsize = 8mm
     play_viz, slider_value = play_slider(
-        gui.edit_screen, iconsize, total_slider_values
+        gui.sliderscreen, iconsize, total_slider_values
     )
     #Each slider value change sends a signal to covariate plotter
     #100 points are plotted on the x axis.
@@ -186,7 +189,15 @@ function add_callbacks(gui)
         [waveform_color; thres_color]
     end
 
-    gamma_slider, gamma_slider_s = labeled_slider(0.0f0:.1f0:1.0f0,gui.edit_screen)
+    my_time = map(slider_value) do t
+
+        minutes = div(t, 30000 * 60)
+        seconds = round((t- minutes*60*30000)/30000,2)
+
+        mystring=string(minutes,"m ",seconds,"s")
+    end
+
+    gamma_slider, gamma_slider_s = labeled_slider(0.0f0:.1f0:1.0f0,gui.sliderscreen)
 
     change_gamma = map(gamma_slider_s) do t
        gui.gamma = t
@@ -203,7 +214,8 @@ function add_callbacks(gui)
         controls,
         text_scale = 4mm,
         width = 8*iconsize
-    ), gui.edit_screen, camera = :fixed_pixel)
+    ), gui.sliderscreen, camera = :fixed_pixel)
+    _view(visualize(my_time, color=RGBA(0f0,0f0,0f0)),gui.timescreen)
 
 end
 

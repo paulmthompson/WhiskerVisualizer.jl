@@ -4,6 +4,8 @@ type analysis_gui
     viewscreen::GLWindow.Screen
     imgscreen::GLWindow.Screen
     datascreen::GLWindow.Screen
+    timescreen::GLWindow.Screen
+    sliderscreen::GLWindow.Screen
     gamma::Float32
     cov1::Array{GeometryTypes.Point{2,Float32},2}
     vid_path::String

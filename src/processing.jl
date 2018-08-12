@@ -1,4 +1,6 @@
 
+export clip_segment
+
 function bandpass_filter(gui,inds,wn1,wn2)
 
     responsetype = Bandpass(wn1,wn2; fs=30000)
@@ -40,6 +42,59 @@ function sort_spikes(gui,t)
         push!(gui.spikes_ts,t-30000+1+gui.buf[i].inds[1])
     end
     gui.spike_nums[1]=0
+
+    nothing
+end
+
+function clip_segment(gui,t1,t2)
+
+    v_frame_rate = 25
+
+    #Video Frame that is equal to a second in save video nearest to desired time
+    full_frame = round(Int,gui.video_ts[t1] / v_frame_rate)
+
+    #Corresponding index of analog channel that corresponds to video
+    first_ind=findfirst(gui.video_ts./v_frame_rate .== full_frame)
+
+    #Video time in seconds that is closest to t2
+    end_frame = round(Int,gui.video_ts[t2] / v_frame_rate)
+
+    end_ind = findfirst(gui.video_ts./v_frame_rate .== end_frame)
+
+    num_frames = end_frame - full_frame
+
+    #Create video clip of desired length
+    run(`ffmpeg -ss $full_frame -i $(gui.vid_path) -c copy -t $(num_frames) output.mp4`)
+
+    #Cut out corresponding audio for that second
+
+    my_voltage = gui.y_data[first_ind:(end_ind),1]
+
+    println(first_ind)
+    println(end_ind)
+
+    gui.s.index=0
+    #Sort so that only spikes are left to remove crumby audio
+    SpikeSorting.onlinesort!(gui.s,my_voltage,gui.buf,gui.spike_nums)
+
+    my_audio=zeros(Float32,length(my_voltage))
+
+    for i=1:gui.spike_nums[1]
+        my_audio[gui.buf[i].inds]=my_voltage[gui.buf[1].inds]
+    end
+
+    gui.spike_nums[1]=0
+
+    WAV.wavwrite(my_audio,"test.wav",Fs=div(30000,10))
+
+
+    output_name = string(t1,".mp4")
+
+    #Combine audio and video
+    run(`ffmpeg -i output.mp4 -i test.wav -c:v copy -c:a aac -strict experimental $(output_name)`)
+
+    #Remove temp video
+    run(`rm output.mp4`)
 
     nothing
 end
