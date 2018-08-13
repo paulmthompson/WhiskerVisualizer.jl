@@ -23,4 +23,5 @@ type analysis_gui
     spike_nums::Array{Int64,1}
     show_spikes::Bool
     spikes::Array{GeometryTypes.Point{2,Float32},2}
+    p_slider::Reactive.Signal{Int64}
 end

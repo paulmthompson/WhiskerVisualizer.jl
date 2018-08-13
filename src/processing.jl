@@ -98,3 +98,31 @@ function clip_segment(gui,t1,t2)
 
     nothing
 end
+
+function record_frames(gui,t1,t2)
+
+    #Find the total number of frames between t1 and t2
+    slider_step = round(Int64,gui.max_time / ((gui.max_time-100) / 1000 * 10))
+    total_slider_values = 30000:slider_step:gui.max_time
+
+    first_slider_value = findfirst(total_slider_values.>t1)
+
+    last_slider_value = findfirst(total_slider_values.>t2)
+
+
+    total_frames = last_slider_value-first_slider_value
+
+    io=GLVisualize.create_video_stream("myout.mkv",gui.win)
+
+    Reactive.set_value!(gui.p_slider.parents[1],first_slider_value)
+    Reactive.activate!(gui.p_slider.parents[1])
+
+    for i=1:total_frames
+    
+        yield()
+        GLVisualize.add_frame!(io)
+    end
+
+    close(io.io)
+
+end

@@ -47,7 +47,8 @@ function make_gui(mypath)
     0.2f0,
     Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
     vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100,
-    1,zeros(Int64,0),s[1],buf,nums,false,[Point2f0(0.0,0.0) for i=1:50,j=1:1])
+    1,zeros(Int64,0),s[1],buf,nums,false,[Point2f0(0.0,0.0) for i=1:50,j=1:1],
+    Reactive.Signal(1))
 end
 
 function add_spikes(gui,channel_num)
@@ -207,6 +208,8 @@ function add_callbacks(gui)
         "play" => play_viz,
         "gamma" => gamma_slider,
     ]
+
+    gui.p_slider=slider_value
 
     _view(visualize(my_animation, :lines,thickness=2f0), gui.datascreen)
     _view(visualize(my_spikes, :lines, thickness=1f0,color = my_colors), gui.imgscreen)
