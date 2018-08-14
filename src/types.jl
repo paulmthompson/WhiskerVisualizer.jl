@@ -25,3 +25,14 @@ type analysis_gui
     spikes::Array{GeometryTypes.Point{2,Float32},2}
     p_slider::Reactive.Signal{Int64}
 end
+
+type clip_times
+    t1::Int64
+    t2::Int64
+    ts1::Int64
+    ts2::Int64
+    ind1::Int64
+    ind2::Int64
+    s1::Int64
+    s2::Int64
+end
