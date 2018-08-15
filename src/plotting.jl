@@ -78,7 +78,7 @@ function plot_lines(gui,t)
 
 
             l_bound = t-p_per_frame + round(Int64,x_inds[i])
-            r_bound = t-p_per_frame + round(Int64,x_inds[i+1])
+            r_bound = t-p_per_frame + round(Int64,x_inds[i+1])-1
 
             min_y = minimum(gui.y_data[l_bound:r_bound,mycov])
             max_y = maximum(gui.y_data[l_bound:r_bound,mycov])

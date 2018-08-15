@@ -102,7 +102,7 @@ function clip_segment(gui,t1,t2)
 
     #We want the duration to be the same as the length of the video.
     #so num_frames * 100
-    WAV.wavwrite(my_audio,"test.wav",Fs=div(30000,num_frames))
+    WAV.wavwrite(my_audio,"test.wav",Fs=div(t2-t1,num_frames))
 
     output_name = string(t1,"_with_audio.mp4")
 
@@ -165,6 +165,6 @@ function put_together(gui,t1,t2)
     run(`rm analog2.mp4`)
     run(`rm analog.mp4`)
     run(`rm test.wav`)
-
-
+    cd("..")
+    nothing
 end

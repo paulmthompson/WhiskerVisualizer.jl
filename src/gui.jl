@@ -1,4 +1,4 @@
-export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov
+export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov, add_labels
 
 const pause_cmd = pipeline(`echo 'set pause yes'`,`socat - /tmp/mpvsocket`)
 
@@ -39,7 +39,7 @@ function make_gui(mypath)
     num_channels=1;
 
     s=create_multi(detect,cluster,align,feature,reduce,thres,1,48,Float32);
-    buf=Spike[Spike() for i=1:1000,j=1:1];
+    buf=Spike[Spike() for i=1:10000,j=1:1];
     nums=zeros(Int64,1)
     s[1].thres=-1.0
 
@@ -185,7 +185,7 @@ function add_callbacks(gui)
 
         waveform_color=[RGBA(0f0, 0f0, 1f0,1f0) for i=1:(size(t,2)-1)*size(t,1)]
 
-        thres_color = [RGBA(0f0, 1f0, 0f0,1f0) for i=1:size(t,1)]
+        thres_color = [RGBA(0f0, 0f0, 0f0,1f0) for i=1:size(t,1)]
 
         [waveform_color; thres_color]
     end
@@ -195,7 +195,7 @@ function add_callbacks(gui)
         minutes = div(t, 30000 * 60)
         seconds = round((t- minutes*60*30000)/30000,2)
 
-        mystring=string(minutes,"m ",seconds,"s")
+        mystring=string("              ", minutes,"m ",seconds,"s")
     end
 
     gamma_slider, gamma_slider_s = labeled_slider(0.0f0:.1f0:1.0f0,gui.sliderscreen)
@@ -220,6 +220,15 @@ function add_callbacks(gui)
     ), gui.sliderscreen, camera = :fixed_pixel)
     _view(visualize(my_time, color=RGBA(0f0,0f0,0f0)),gui.timescreen)
 
+end
+
+function add_labels(points,labels,myscreen)
+
+    mypoints = GeometryTypes.Point2f0[points[i] for i=1:length(points)]
+
+    (mytext,mywidths)=GLVisualize.annotated_text(mypoints,labels)
+
+    _view(mytext,myscreen)
 end
 
 myseek(x)=pipeline(`echo seek $x absolute`,`socat - /tmp/mpvsocket`)
