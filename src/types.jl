@@ -1,5 +1,12 @@
+type Whisker
+    pos::Array{GeometryTypes.Point2f0,1}
+    ang::Float64
+    phase::Float64
+    amp::Float64
+end
+
 type analysis_gui
-   win::GLWindow.Screen
+    win::GLWindow.Screen
     edit_screen::GLWindow.Screen
     viewscreen::GLWindow.Screen
     imgscreen::GLWindow.Screen
@@ -24,6 +31,11 @@ type analysis_gui
     show_spikes::Bool
     spikes::Array{GeometryTypes.Point{2,Float32},2}
     p_slider::Reactive.Signal{Int64}
+    event_ts::Array{Array{Int64,1},1}
+    myhist::Array{Int64,1}
+    slider_values::StepRange{Int64,Int64}
+    tif::Array{ColorTypes.Gray{FixedPointNumbers.Normed{UInt8,8}},3}
+    whiskers::Array{Whisker,2}
 end
 
 type clip_times
@@ -36,3 +48,6 @@ type clip_times
     s1::Int64
     s2::Int64
 end
+
+
+Whisker()=Whisker(zeros(GeometryTypes.Point2f0,0),0.0,0.0,0.0)

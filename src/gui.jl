@@ -1,6 +1,4 @@
-export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov, add_labels
-
-const pause_cmd = pipeline(`echo 'set pause yes'`,`socat - /tmp/mpvsocket`)
+export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov, add_labels, add_times
 
 function make_gui(mypath)
 
@@ -43,12 +41,15 @@ function make_gui(mypath)
     nums=zeros(Int64,1)
     s[1].thres=-1.0
 
+    tif = Array{ColorTypes.Gray{FixedPointNumbers.Normed{UInt8,8}},3}(0,0,0)
+    whiskers=[Whisker() for i=1:1, j=1:1]
+
     analysis_gui(window,edit_screen,viewscreen,imgscreen,datascreen,time_screen, slider_screen,
     0.2f0,
     Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
     vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100,
-    1,zeros(Int64,0),s[1],buf,nums,false,[Point2f0(0.0,0.0) for i=1:50,j=1:1],
-    Reactive.Signal(1))
+    1,zeros(Int64,0),s[1],buf,nums,false,[Point2f0(0.0,0.0) for i=1:50,j=1:4],
+    Reactive.Signal(1),[zeros(Int64,0) for i=0:0],zeros(Int64,length(-3000:300:3000)-1),1:10:10000,tif,whiskers)
 end
 
 function add_spikes(gui,channel_num)
@@ -62,9 +63,26 @@ function add_spikes(gui,channel_num)
     gui.y_data=zeros(Float32,length(spikes),3)
 
     gui.y_data[:,1]=spikes
-    gui.max_time=length(spikes)
+    #gui.max_time=length(spikes)
 
     close(io_spike)
+    nothing
+end
+
+function add_times(gui,channel_num)
+
+    spike_path = get_spike_path(gui.folder_path,channel_num)
+    io_spike = open(spike_path,"r")
+    times=TimeArray(Int64,io_spike);
+
+    gui.start_time=times[1]
+    gui.max_time=length(times)
+
+    slider_step = round(Int64,gui.max_time / ((gui.max_time-100) / 1000 * 10))
+    gui.slider_values = 30000:slider_step:gui.max_time
+
+    close(io_spike)
+
     nothing
 end
 
@@ -73,25 +91,17 @@ function add_video(gui,channel_num)
     event_path = string(gui.folder_path, "all_channels.events")
     io_event = open(event_path,"r");
 
-    spike_path = get_spike_path(gui.folder_path,1)
-    io_spike = open(spike_path,"r")
-    times=TimeArray(Int64,io_spike);
-
-    xx=parse_ttl(io_event,times,channel_num)
+    xx=parse_ttl(io_event,channel_num,gui.start_time,gui.max_time)
 
     gui.video_ts=xx[3]
-    gui.start_time=times[1]
 
     #If i seek to the last frame, mpv crashes, so set to second to last frame
     gui.video_ts[gui.video_ts.==gui.video_ts[end]]=gui.video_ts[end]-1;
 
-    #Error checking here with mpv socket?
-    #May need to try and sleep if mpv is not open yet
-    stdout, stdin, process = readandwrite(`mpv --hr-seek=always --input-ipc-server=/tmp/mpvsocket --quiet --osdlevel=0 $(gui.vid_path)`)
+    stdout, stdin, process = mpv_open(gui.vid_path)
     sleep(1.0)
     run(pause_cmd)
 
-    close(io_spike)
     close(io_event)
     nothing
 end
@@ -101,15 +111,12 @@ function add_ttl_cov(gui,channel_num,cov_num)
     event_path = string(gui.folder_path, "all_channels.events")
     io_event = open(event_path,"r");
 
-    spike_path = get_spike_path(gui.folder_path,1)
-    io_spike = open(spike_path,"r")
-    times=TimeArray(Int64,io_spike);
-
-    xx=parse_ttl(io_event,times,channel_num)
+    xx=parse_ttl(io_event,channel_num,gui.start_time,gui.max_time)
 
     gui.y_data[:,cov_num] = xx[2]
 
-    close(io_spike)
+    push!(gui.event_ts,xx[1]-gui.start_time)
+
     close(io_event)
 nothing
 
@@ -135,15 +142,10 @@ function add_callbacks(gui)
     #advance in time with each frame in that 30 fps
     #For instance, if we play just 1 data point per frame, that would be 30000 / 30 = 1/1000 of real time
     #Lets slow down to 1/10 of normal
-    slowdown = 10
-    #max_time = 10000000
 
-    #Let's make the slider only move in increments of the ADC, or multiples of 1/30000 seconds
-    slider_step = round(Int64,gui.max_time / ((gui.max_time-100) / 1000 * 10))
-    total_slider_values = 30000:slider_step:gui.max_time
     iconsize = 8mm
     play_viz, slider_value = play_slider(
-        gui.sliderscreen, iconsize, total_slider_values
+        gui.sliderscreen, iconsize, gui.slider_values
     )
     #Each slider value change sends a signal to covariate plotter
     #100 points are plotted on the x axis.
@@ -153,9 +155,7 @@ function add_callbacks(gui)
     time_scale=1;
     my_animation = map(slider_value) do t
 
-        DAQ_rate = 30000
-        camera_frame_rate = 500 #Don't actually need this since we have the frame number
-        video_frame_rate = 25
+        video_frame_rate = 25 #We should calculate this
         #Because the video is not continuous, at T we should
         #find the total frame count at that index and use that instead
 
@@ -166,7 +166,7 @@ function add_callbacks(gui)
                 run(myseek(frame_num / video_frame_rate))
             end
 
-            plot_lines(gui,t)
+            plot_lines(gui,t,increment=2,p_per_frame=100)
 
         gui.cov1
     end
@@ -175,6 +175,7 @@ function add_callbacks(gui)
 
         if gui.show_spikes
             sort_spikes(gui,t)
+            event_triggered(gui,t)
             plot_spikes(gui)
         end
 
@@ -183,9 +184,9 @@ function add_callbacks(gui)
 
     my_colors = map(my_spikes) do t
 
-        waveform_color=[RGBA(0f0, 0f0, 1f0,1f0) for i=1:(size(t,2)-1)*size(t,1)]
+        waveform_color=[RGBA(0f0, 0f0, 1f0,1f0) for i=1:(size(t,2)-3)*size(t,1)]
 
-        thres_color = [RGBA(0f0, 0f0, 0f0,1f0) for i=1:size(t,1)]
+        thres_color = [RGBA(0f0, 0f0, 0f0,1f0) for i=1:size(t,1)*3]
 
         [waveform_color; thres_color]
     end
@@ -230,9 +231,3 @@ function add_labels(points,labels,myscreen)
 
     _view(mytext,myscreen)
 end
-
-myseek(x)=pipeline(`echo seek $x absolute`,`socat - /tmp/mpvsocket`)
-
-set_gamma(x)=pipeline(`echo set gamma $x`,`socat - /tmp/mpvsocket`)
-
-set_brightness(x)=pipeline(`echo set brightness $x`,`socat - /tmp/mpvsocket`)

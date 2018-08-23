@@ -58,15 +58,15 @@ function master_parse(folder_path,video_chan,laser_chan)
     nothing
 end
 
-function parse_ttl(io,tt,ind)
+function parse_ttl(io,ind,t1,t2)
     digital=read_digital(io)
 
     #Array of bools that is true during a TTL event, and false when no TTL is present
-    digital_events=falses(length(tt));
+    digital_events=falses(t2);
 
     #Array where each index corresponds to the total number of TTL digital_events
     #Up to that point.
-    digital_time=zeros(Int64,length(tt))
+    digital_time=zeros(Int64,t2)
 
     states=falses
     states_t=digital[ind][1]
@@ -75,10 +75,11 @@ function parse_ttl(io,tt,ind)
 
     states_array=zeros(Int64,0)
 
-    for i=2:length(tt)
+    current_time = t1
+    for i=2:t2
 
         #If this is when a digital event occurs
-        if states_t == tt[i]
+        if states_t == current_time
 
             #Change the state
             digital_events[i] = !digital_events[i-1]
@@ -86,7 +87,7 @@ function parse_ttl(io,tt,ind)
             #If we went high
             if digital_events[i]
                 states_totals+=1
-                push!(states_array,tt[i])
+                push!(states_array,current_time)
             end
 
             if length(digital[ind])<(states_i+1)
@@ -103,6 +104,7 @@ function parse_ttl(io,tt,ind)
         end
 
         digital_time[i]=states_totals
+        current_time += 1
     end
     (states_array,digital_events,digital_time)
 end
@@ -116,6 +118,8 @@ function check_camera_alignment(gui)
         println("Exposure event totals match frames in video file")
     else
         println("ERROR: frame counts do not match")
+        println(string("File frame count: ",gui.video_ts[end]+1))
+        println(string("TTL frame count: ", video_frames))
     end
     nothing
 end

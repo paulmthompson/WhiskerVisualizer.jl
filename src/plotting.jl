@@ -21,7 +21,11 @@ end
 
 function plot_spikes(gui)
 
-    gui.spikes=[Point2f0(0.0,0.0) for i=1:50,j=1:length(gui.spikes_ts)+1]
+    #The number of lines to plot is equal to the number of spikes
+    # + threshold line
+    # + event triggered average
+    # + event_triggered average axis
+    gui.spikes=[Point2f0(0.0,0.0) for i=1:50,j=1:length(gui.spikes_ts)+3]
 
     for i=1:length(gui.spikes_ts)
         for j=1:50
@@ -30,15 +34,22 @@ function plot_spikes(gui)
     end
 
     for j=1:50
-        gui.spikes[j,end] = Point2f0(j*5+200,gui.s.thres*gui.y_scales[1]+300)
+        gui.spikes[j,end-2] = Point2f0(j*5+200,gui.s.thres*gui.y_scales[1]+300)
     end
+
+    for j=1:length(gui.myhist)
+        norm_hist = gui.myhist[j]./(sum(gui.myhist)+1)
+        gui.spikes[j,end-1] = Point2f0(j*10+200,norm_hist.*100+50)
+    end
+
+    for j=1:length(gui.myhist)
+        gui.spikes[j,end] = Point2f0(j*10+200,50)
+    end
+
     nothing
 end
 
-function plot_lines(gui,t)
-
-    xoff = 0;
-    yoff = 100;
+function plot_lines(gui,t; increment=2,p_per_frame=100, xoff=0, yoff=100)
 
     #Since this is automatically advancing, we can slow things down here if we wish
     #By only plotting if a certain number of frames have passed
@@ -59,11 +70,8 @@ function plot_lines(gui,t)
     #Points / (# frames for data)
     # 600 / (300)  = 16 or 480 points total
 
-    increment = 2
     total_points = 500
     remainder_points = total_points - increment
-
-    p_per_frame = 100
 
     for mycov=1:3
 
@@ -80,13 +88,17 @@ function plot_lines(gui,t)
             l_bound = t-p_per_frame + round(Int64,x_inds[i])
             r_bound = t-p_per_frame + round(Int64,x_inds[i+1])-1
 
-            min_y = minimum(gui.y_data[l_bound:r_bound,mycov])
-            max_y = maximum(gui.y_data[l_bound:r_bound,mycov])
-
-            if (abs(min_y)>max_y)
-                y_val = min_y
+            if (l_bound >= r_bound)
+                y_val = gui.y_data[l_bound,mycov]
             else
-                y_val = max_y
+                min_y = minimum(gui.y_data[l_bound:r_bound,mycov])
+                max_y = maximum(gui.y_data[l_bound:r_bound,mycov])
+
+                if (abs(min_y)>max_y)
+                    y_val = min_y
+                else
+                    y_val = max_y
+                end
             end
 
             y_point = y_val*gui.y_scales[mycov]+yoff*mycov

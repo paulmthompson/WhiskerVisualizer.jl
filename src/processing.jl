@@ -46,6 +46,30 @@ function sort_spikes(gui,t)
     nothing
 end
 
+function event_triggered(gui,t)
+
+    my_events=gui.event_ts[2][((gui.event_ts[2].>(t-30000)).&(gui.event_ts[2].<t))]
+
+    myrange=-3000:300:3000
+
+    for k=1:length(gui.myhist)
+        gui.myhist[k]=0
+    end
+
+    for i=1:length(my_events)
+        for j=1:length(gui.spikes_ts)
+            for k=1:length(myrange)-1
+               ttt = gui.spikes_ts[j]-my_events[i]
+                if (ttt > myrange[k]).&(ttt<myrange[k+1])
+                   gui.myhist[k] += 1
+                end
+            end
+        end
+    end
+
+    nothing
+end
+
 #Get the video times and analog indexes that are closest
 #to t1 and t2 while also being equal to a value the slider adopts
 #and being a whole second value of the mp4 video
@@ -109,6 +133,22 @@ function clip_segment(gui,t1,t2)
     #Combine audio and video
     run(`ffmpeg -i short.mp4 -i test.wav -c:v copy -c:a aac -strict experimental $(output_name)`)
 
+    #The above video has audio and video synchronized, but the length of the video is still a
+    #Function of the length of time (t2-t1), as well as how many video frames actually represent
+    #one second. to be played at 1/10 of normal speed, we want a 25 fps video to represent
+    # 250 camera frames
+    #If the camera is higher or lower FPS, it should be adjusted accordingly
+
+    total_time = (t2-t1)/30000
+
+    #How do we determine frame rate of camera?
+    #Probably should calculate it roughly when we load in video data
+    total_camera_time = (num_frames * 25)
+
+
+
+    #run(`ffmpeg -i $(output_name) -filter_complex "[0:v]setpts=0.5*PTS[v];[0:a]atempo=2.0[a]" -map "[v]" -map "[a]" out2.mp4`)
+
 
     nothing
 end
@@ -141,6 +181,8 @@ function record_frames(gui,t1,t2)
     close(io.io)
 
     sleep(5.0)
+    #Because the video is saved at 35 fps, but the video is actually being
+    #played at 30 fps, we need to change the video to be 30 fps
     run(`ffmpeg -y -i analog.mp4 -vf "setpts=0.833*PTS" -r 30 analog2.mp4`)
 
 end
