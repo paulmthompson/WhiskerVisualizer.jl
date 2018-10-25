@@ -69,7 +69,7 @@ function add_wt_a(gui,wnum,cnum)
     nothing
 end
 
-function add_wt_callbacks()
+function add_wt_callbacks(gui)
 
 
 

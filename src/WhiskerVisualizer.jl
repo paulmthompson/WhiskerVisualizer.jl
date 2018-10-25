@@ -1,6 +1,6 @@
 module WhiskerVisualizer
 
-using GLVisualize, GLAbstraction, Reactive, GeometryTypes, Colors, GLWindow,
+using GLVisualize, GLAbstraction, Reactive, GeometryTypes, Colors, GLWindow, Intan,
 OpenEphysLoader, WAV, DSP, MAT, SpikeSorting, FileIO, FixedPointNumbers, Interpolations
 
 import GLVisualize: widget, mm, play_slider, labeled_slider

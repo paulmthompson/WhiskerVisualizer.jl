@@ -52,48 +52,72 @@ function make_gui(mypath)
     Reactive.Signal(1),[zeros(Int64,0) for i=0:0],zeros(Int64,length(-3000:300:3000)-1),1:10:10000,tif,whiskers)
 end
 
-function add_spikes(gui,channel_num)
+function add_spikes(gui,channel_num,data_type="Intan")
 
-    spike_path = get_spike_path(gui.folder_path,channel_num)
-    io_spike = open(spike_path,"r");
 
-    spikes = SampleArray(Float32,io_spike);
-    spikes = Array(spikes)
+    if data_type == "Intan"
+        spike_path = string(gui.folder_path,"v.bin")
+        spikes = Intan.parse_v(spike_path)
+    else
+
+        spike_path = get_spike_path(gui.folder_path,channel_num)
+        io_spike = open(spike_path,"r");
+
+        spikes = SampleArray(Float32,io_spike);
+        spikes = Array(spikes)
+        close(io_spike)
+    end
 
     gui.y_data=zeros(Float32,length(spikes),3)
-
     gui.y_data[:,1]=spikes
-    #gui.max_time=length(spikes)
 
-    close(io_spike)
     nothing
 end
 
-function add_times(gui,channel_num)
+function add_times(gui,channel_num,data_type="Intan")
 
-    spike_path = get_spike_path(gui.folder_path,channel_num)
-    io_spike = open(spike_path,"r")
-    times=TimeArray(Int64,io_spike);
+    if data_type == "Intan"
+        spike_path = string(gui.folder_path,"v.bin")
+        gui.start_time=1
+        gui.max_time=size(Intan.parse_v(spike_path),1)
+    else
+        spike_path = get_spike_path(gui.folder_path,channel_num)
+        io_spike = open(spike_path,"r")
+        times=TimeArray(Int64,io_spike);
 
-    gui.start_time=times[1]
-    gui.max_time=length(times)
+        gui.start_time=times[1]
+        gui.max_time=length(times)
+        close(io_spike)
+    end
 
     slider_step = round(Int64,gui.max_time / ((gui.max_time-100) / 1000 * 10))
     gui.slider_values = 30000:slider_step:gui.max_time
 
-    close(io_spike)
-
     nothing
 end
 
-function add_video(gui,channel_num)
+function add_video(gui,channel_num,data_type="Intan")
 
-    event_path = string(gui.folder_path, "all_channels.events")
-    io_event = open(event_path,"r");
+    if data_type == "Intan"
+        myttl = Intan.parse_ttl(string(gui.folder_path,"ttl.bin"))
+        my_vid_times=myttl[channel_num][find(diff(myttl[channel_num]).>1)]
+        my_vid_array = zeros(Int64,gui.max_time)
+        for i=2:length(my_vid_times)
+            my_vid_array[my_vid_times[i-1]:my_vid_times[i]]=i
+        end
+        my_vid_array[my_vid_times[end]:end]=length(my_vid_times)
 
-    xx=parse_ttl(io_event,channel_num,gui.start_time,gui.max_time)
+        gui.video_ts=my_vid_array
+    else
 
-    gui.video_ts=xx[3]
+        event_path = string(gui.folder_path, "all_channels.events")
+        io_event = open(event_path,"r");
+
+        xx=parse_ttl(io_event,channel_num,gui.start_time,gui.max_time)
+        close(io_event)
+        gui.video_ts=xx[3]
+
+    end
 
     #If i seek to the last frame, mpv crashes, so set to second to last frame
     gui.video_ts[gui.video_ts.==gui.video_ts[end]]=gui.video_ts[end]-1;
@@ -102,24 +126,30 @@ function add_video(gui,channel_num)
     sleep(1.0)
     run(pause_cmd)
 
-    close(io_event)
+
     nothing
 end
 
-function add_ttl_cov(gui,channel_num,cov_num)
+#If there are not any events, should probably state that in a message and not error
+function add_ttl_cov(gui,channel_num,cov_num,data_type="Intan")
 
-    event_path = string(gui.folder_path, "all_channels.events")
-    io_event = open(event_path,"r");
+    if data_type == "Intan"
+        myttl = Intan.parse_ttl(string(gui.folder_path,"ttl.bin"))
+        gui.y_data[myttl[channel_num],cov_num] = 1
+        push!(gui.event_ts,myttl[channel_num][find(diff(myttl[channel_num]).>1)])
+    else
 
-    xx=parse_ttl(io_event,channel_num,gui.start_time,gui.max_time)
+        event_path = string(gui.folder_path, "all_channels.events")
+        io_event = open(event_path,"r");
 
-    gui.y_data[:,cov_num] = xx[2]
+        xx=parse_ttl(io_event,channel_num,gui.start_time,gui.max_time)
 
-    push!(gui.event_ts,xx[1]-gui.start_time)
+        gui.y_data[:,cov_num] = xx[2]
 
-    close(io_event)
-nothing
+        push!(gui.event_ts,xx[1]-gui.start_time)
 
+        close(io_event)
+    end
 
     nothing
 end
@@ -175,7 +205,9 @@ function add_callbacks(gui)
 
         if gui.show_spikes
             sort_spikes(gui,t)
-            event_triggered(gui,t)
+            if length(gui.event_ts)>0
+                event_triggered(gui,t)
+            end
             plot_spikes(gui)
         end
 

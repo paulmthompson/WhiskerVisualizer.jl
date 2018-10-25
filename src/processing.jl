@@ -46,6 +46,7 @@ function sort_spikes(gui,t)
     nothing
 end
 
+
 function event_triggered(gui,t)
 
     my_events=gui.event_ts[2][((gui.event_ts[2].>(t-30000)).&(gui.event_ts[2].<t))]
