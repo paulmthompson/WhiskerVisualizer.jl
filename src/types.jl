@@ -36,6 +36,8 @@ type analysis_gui
     slider_values::StepRange{Int64,Int64}
     tif::Array{ColorTypes.Gray{FixedPointNumbers.Normed{UInt8,8}},3}
     whiskers::Array{Whisker,2}
+    pre_sorted::Bool
+    pre_sorted_ts::Array{Int64,1}
 end
 
 type clip_times

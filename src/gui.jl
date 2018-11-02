@@ -1,4 +1,4 @@
-export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov, add_labels, add_times
+export make_gui, add_callbacks, add_spikes, add_video, add_ttl_cov, add_labels, add_times, add_spike_ts
 
 function make_gui(mypath)
 
@@ -49,7 +49,7 @@ function make_gui(mypath)
     Point2f0[Point2f0(i*5,0.0)  for i=1:500,j=1:3],
     vid_path,mypath,y_data,max_time,ones(Float32,3),zeros(Int64,max_time),0,100,
     1,zeros(Int64,0),s[1],buf,nums,false,[Point2f0(0.0,0.0) for i=1:50,j=1:4],
-    Reactive.Signal(1),[zeros(Int64,0) for i=0:0],zeros(Int64,length(-3000:300:3000)-1),1:10:10000,tif,whiskers)
+    Reactive.Signal(1),[zeros(Int64,0) for i=0:0],zeros(Int64,length(-3000:300:3000)-1),1:10:10000,tif,whiskers,false,[0])
 end
 
 function add_spikes(gui,channel_num,data_type="Intan")
@@ -154,6 +154,19 @@ function add_ttl_cov(gui,channel_num,cov_num,data_type="Intan")
     nothing
 end
 
+function add_spike_ts(gui,filename)
+
+    gui.pre_sorted=true
+
+    myspikes=matread(string(gui.folder_path,"v_sorted.mat"))
+
+    times=myspikes["Channel01"][:,1];
+
+    gui.pre_sorted_ts=round(Int64,times.*30000)
+
+    nothing
+end
+
 function get_spike_path(folder_path,channel_num)
 
     adc_channels=filter(x->contains(x,".continuous"),readdir(folder_path))
@@ -204,7 +217,11 @@ function add_callbacks(gui)
     my_spikes = map(slider_value) do t
 
         if gui.show_spikes
-            sort_spikes(gui,t)
+            if gui.pre_sorted ==false
+                sort_spikes(gui,t)
+            else
+                get_sorted_ts(gui,t)
+            end
             if length(gui.event_ts)>0
                 event_triggered(gui,t)
             end

@@ -46,7 +46,11 @@ function sort_spikes(gui,t)
     nothing
 end
 
+function get_sorted_ts(gui,t)
 
+    gui.spikes_ts=gui.pre_sorted_ts[(gui.pre_sorted_ts.>(t-30000+1))&(gui.pre_sorted_ts.<t)]
+
+end
 function event_triggered(gui,t)
 
     my_events=gui.event_ts[2][((gui.event_ts[2].>(t-30000)).&(gui.event_ts[2].<t))]
